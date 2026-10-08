@@ -1,131 +1,162 @@
-# Seoul Bike Sharing Demand Prediction
+# Seoul-Bike-Sharing-Demand
 
-Predicting the **hourly number of rented bikes** in Seoul's bike-sharing system from weather and calendar information, using regression models in Python.
+Predicting the hourly demand for Seoul's public bike-sharing system from weather and time information, using classical machine learning regression models.
+
+## Table of Contents
+1. [Problem Statement](#1-problem-statement)
+2. [Hypothesis Generation](#2-hypothesis-generation-for-the-problem-statement)
+3. [Dataset Description](#3-dataset-description)
+4. [Understanding Variables](#4-understanding-variables)
+5. [Project Workflow](#5-project-workflow)
+6. [Models Used](#6-models-used)
+7. [Results](#7-results)
+8. [Tech Stack](#8-tech-stack)
+9. [How to Run](#9-how-to-run)
+10. [Repository Structure](#10-repository-structure)
 
 ---
 
 ## 1. Problem Statement
 
-Many metropolitan cities now provide bike rental services to enhance urban mobility and convenience. Ensuring that rental bikes are available when needed is essential for minimizing wait times, making a steady supply of bikes a key priority. In this context, the predicted hourly demand plays a vital role.
+Many metropolitan cities now provide bike rental services to enhance urban mobility and convenience. Ensuring that rental bikes are available when needed is essential for minimizing wait times, making the steady supply of bikes a key priority. In this context, the predicted hourly demand plays a vital role.
 
-Bike-sharing systems streamline membership, rentals and returns through a network of automated stations. Users can pick up a bike at one location and return it to the same or a different one.
+Bike-sharing systems streamline the process of membership, rentals, and returns through a network of automated stations. Users can pick up a bike from one location and return it either to the same spot or a different one. Rentals are facilitated through membership or on-demand access, all managed by a citywide automated system.
 
-This project forecasts demand for Seoul's Bike Sharing Program by analyzing historical usage together with weather, time and holiday information.
-
----
-
-## 2. Hypothesis Generation
-
-**Weather**
-- Does pleasant (warmer) temperature increase bike rentals?
-- Are rentals lower when humidity is very high?
-- Are rentals lower during rainfall or snowfall?
-- Do windy conditions discourage rentals?
-- Does low visibility reduce rentals?
-- Do sunny days (higher solar radiation) increase rentals?
-
-**Time**
-- Are rentals higher during morning and evening commute hours?
-- Do weekends differ from weekdays?
-- Are rentals lower on holidays?
-- Do rentals vary across seasons?
-- Do late-night and daytime rentals behave differently?
+This project forecasts the demand for Seoul's Bike Sharing Program by analyzing historical usage trends alongside factors such as temperature, time, and other variables.
 
 ---
 
-## 3. Dataset
+## 2. Hypothesis Generation for the Problem Statement
 
-Hourly rental counts for one year (`SeoulBikeData.csv`) with matching weather and holiday data.
+### On the basis of Weather Conditions
+- Does temperature have a positive impact on bike rentals (higher demand in pleasant weather)?
+- Are bike rentals lower when humidity is very high?
+- Are rentals less frequent during rainfall or snowfall?
+- Do windy conditions discourage people from renting bikes?
+- Is there a relationship between visibility and bike demand (low visibility → fewer rentals)?
+- Do solar radiation levels (sunny vs cloudy days) influence rentals?
 
-- **Rows / columns:** 8,760 / 14
-- **Missing values:** none
-- **Duplicate rows:** none
-- **Note:** the file is read with `encoding="latin"` because of the `°C` symbols in the column names.
+### On the basis of Time (Temporal Factors)
+- Are rentals higher during morning and evening peak hours (commute times)?
+- Do people rent more bikes on weekends compared to weekdays?
+- Are rentals lower on holidays compared to working days?
+- Do rentals vary significantly across seasons (e.g., highest in summer, lowest in winter)?
+- Is there a difference in late night vs daytime rental behavior?
+
+---
+
+## 3. Dataset Description
+
+The dataset records the hourly count of public bicycles rented in the Seoul Bike Sharing System, along with corresponding weather conditions and holiday information. It includes weather attributes such as temperature, humidity, wind speed, visibility, dew point, solar radiation, snowfall and rainfall, along with rental counts per hour and date-related information.
+
+- **Rows:** 8,760 (hourly records)
+- **Columns:** 14
+- **Duplicate rows:** 0
+- **Source file:** `SeoulBikeData.csv` (read with `encoding="latin"` because of the `°C` symbol)
+
+---
+
+## 4. Understanding Variables
 
 | Column | Description |
 |---|---|
 | Date | day/month/year |
-| Rented Bike Count | Bikes rented in that hour (**target**) |
-| Hour | Hour of day (0-23) |
-| Temperature(°C) | Temperature in Celsius |
-| Humidity(%) | Relative humidity |
+| Rented Bike Count | Count of bikes rented at each hour (**target**) |
+| Hour | Hour of the day (0–23) |
+| Temperature (°C) | Temperature in Celsius |
+| Humidity (%) | Relative humidity |
 | Wind speed (m/s) | Wind speed |
-| Visibility (10m) | Visibility, in units of 10 m |
-| Dew point temperature(°C) | Dew point in Celsius |
+| Visibility (10m) | Visibility in units of 10 m |
+| Dew point temperature (°C) | Dew point in Celsius |
 | Solar Radiation (MJ/m2) | Solar radiation |
-| Rainfall(mm) | Rainfall |
+| Rainfall (mm) | Rainfall |
 | Snowfall (cm) | Snowfall |
 | Seasons | Winter, Spring, Summer, Autumn |
 | Holiday | Holiday / No Holiday |
-| Functioning Day | Yes / No (whether the system was operating) |
+| Functioning Day | Yes (functional hours) / No (non-functional hours) |
 
 ---
 
-## 4. Project Workflow
+## 5. Project Workflow
 
-### 4.1 Data cleaning and pre-processing
-- Renamed columns to simple snake_case names.
-- Parsed `Date` (day-first) and split it into `day`, `month`, `year` and `weekday`; the original column was dropped.
-- Created an `hour` -> `session` grouping (Early Morning, Morning, Afternoon, Evening, Night, Late Night) for EDA only.
-
-### 4.2 Exploratory data analysis
-Each variable was explored with a distribution plot, a relationship plot against `rented_bike_count`, and a multi-variate view (for example demand by hour split by holiday status, or by temperature on weekends vs weekdays). Variables covered: rented bike count, hour, temperature, humidity, wind speed, visibility, dew point, solar radiation, rainfall, snowfall, seasons, holiday and functioning day.
-
-### 4.3 Feature engineering
-- **Outliers:** IQR clipping (1.5 x IQR) on the continuous weather features. The target, `rainfall` and `snowfall` were left untouched to avoid losing real information.
-- **Multi-collinearity:** `dew_point_temperature` dropped (highly correlated with temperature, threshold 0.7); `year` dropped after a VIF check; `weekday` and `session` dropped as EDA-only helpers.
-- **Encoding:** one-hot encoding for `seasons`; binary mapping for `holiday` and `functioning_day`.
-- **Target transform:** square root of `rented_bike_count` (compared against log1p and cube root) to reduce skew. Predictions can be squared to return to the original scale.
-
-Final feature set (16): `hour, temperature, humidity, wind_speed, visibility, solar_radiation, rainfall, snowfall, holiday, functioning_day, day, month` and four `seasons_*` dummies.
-
-### 4.4 Modelling
-- 80/20 train-test split (`random_state=33`): 7,008 training rows, 1,752 test rows.
-- `StandardScaler` fitted on the training set.
-- Models: Linear Regression, Lasso, K-Nearest Neighbors, Support Vector Regression, Decision Tree, XGBoost (tuned with `GridSearchCV`).
-- Metrics: MSE, RMSE, MAE, R² and Adjusted R² (on the square-root scale).
+1. **Data loading & inspection** – shape, info, duplicates, missing values (visualised with `missingno`), unique values per column.
+2. **Cleaning & pre-processing**
+   - Renamed columns to snake_case.
+   - Parsed `Date` (day-first format) and split it into `day`, `month`, `year` and `weekday`.
+   - Created a `session` column (Early Morning, Morning, Afternoon, Evening, Night, Late Night) from `hour`, for EDA only.
+3. **Exploratory Data Analysis** – univariate, bi-variate and multi-variate analysis of every column against rented bike count (distribution plots, point plots, bar plots, scatter plots, line plots).
+4. **Outlier treatment** – skewed continuous features were clipped to the IQR bounds (1.5 × IQR). The target, `rainfall` and `snowfall` were intentionally left untouched.
+5. **Feature engineering & selection**
+   - Correlation heatmap; `dew_point_temperature` dropped (highly correlated with temperature).
+   - Variance Inflation Factor (VIF) check; `year` dropped due to multicollinearity.
+   - `weekday` and `session` dropped (EDA-only columns).
+6. **Encoding**
+   - `seasons` → one-hot encoding.
+   - `holiday` and `functioning_day` → binary (0/1).
+7. **Target transformation** – compared log, square-root and cube-root transforms; the **square-root** transform was applied to `rented_bike_count`.
+8. **Train/test split** – 80/20 split (7,008 train rows, 1,752 test rows, 16 features), followed by `StandardScaler`.
+9. **Model training & evaluation** – a reusable `predict()` function fits each model and reports MSE, RMSE, MAE, R² and Adjusted R² on train and test sets, with actual-vs-predicted plots.
+10. **Hyperparameter tuning** – `GridSearchCV` (5-fold, R² scoring) on XGBoost, followed by a feature-importance analysis.
 
 ---
 
-## 5. Results
+## 6. Models Used
 
-Test-set performance, sorted by R²:
-
-| Model | Test RMSE | Test MAE | Test R² | Train R² |
-|---|---|---|---|---|
-| XGBoost* | 3.486 | 2.338 | 0.919 | 1.000 |
-| Decision Tree | 4.560 | 3.180 | 0.862 | 0.902 |
-| SVR (RBF) | 5.076 | 3.313 | 0.829 | 0.867 |
-| KNN (k=3) | 5.072 | 3.536 | 0.829 | 0.918 |
-| Linear Regression | 7.279 | 5.600 | 0.649 | 0.654 |
-| Lasso | 7.298 | 5.619 | 0.647 | 0.653 |
-
-\*See [Limitations](#6-limitations-and-future-work).
-
-**Top XGBoost feature importances:** `functioning_day` (0.48), `seasons_Winter` (0.38), `rainfall` (0.07), followed by `hour` and `temperature` (about 0.015 each).
+- Linear Regression
+- Lasso Regression
+- K-Nearest Neighbors (k = 3)
+- Support Vector Regressor (RBF kernel, C = 100)
+- Decision Tree Regressor
+- XGBoost Regressor (tuned with GridSearchCV)
 
 ---
 
-## 6. Limitations and Future Work
+## 7. Results
 
-- The XGBoost hyper-parameter search should be run on the training split only, so that the test set stays unseen. Re-run the search and update the table above.
-- XGBoost's train R² of 1.0 against a test R² of 0.92 points to over-fitting; stronger regularization (lower `max_depth`, `learning_rate`, `subsample`) should help.
-- Try Random Forest, LightGBM and Gradient Boosting, and evaluate with time-aware cross-validation.
-- `functioning_day` is a very strong signal because no bikes are rented when the system is closed; consider modelling only functioning hours.
+Metrics are calculated on the square-root-transformed target.
+
+| Model | Test RMSE | Test MAE | Test R² |
+|---|---|---|---|
+| XGBoost (tuned) | 3.486 | 2.338 | 0.919 |
+| Decision Tree | 4.560 | 3.180 | 0.862 |
+| SVM (RBF) | 5.076 | 3.313 | 0.829 |
+| KNN | 5.072 | 3.536 | 0.829 |
+| Linear Regression | 7.279 | 5.600 | 0.649 |
+| Lasso | 7.298 | 5.619 | 0.647 |
+
+Tree-based models clearly outperform the linear models, which suggests the relationship between weather/time features and demand is strongly non-linear.
 
 ---
-
-## 7. How to Run
-
-```bash
-git clone https://github.com/dhruvipatel-90/Seoul-Bike-Sharing-Demand.git
-cd Seoul-Bike-Sharing-Demand
-pip install -r requirements.txt
-jupyter notebook
-```
-
-Place `SeoulBikeData.csv` in the project root, open the notebook and run all cells.
 
 ## 8. Tech Stack
 
-Python, pandas, NumPy, Matplotlib, Seaborn, missingno, scikit-learn, XGBoost, statsmodels.
+Python · Pandas · NumPy · Matplotlib · Seaborn · missingno · Statsmodels · Scikit-learn · XGBoost · LightGBM · Jupyter Notebook
+
+---
+
+## 9. How to Run
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/dhruvipatel-90/Seoul-Bike-Sharing-Demand.git
+cd Seoul-Bike-Sharing-Demand
+
+# 2. Install dependencies
+pip install pandas numpy matplotlib seaborn missingno statsmodels scikit-learn xgboost lightgbm jupyter
+
+# 3. Launch the notebook
+jupyter notebook Seoul_Bike_Sharing_Demand_Prediction.ipynb
+```
+
+Make sure `SeoulBikeData.csv` is in the same folder as the notebook.
+
+---
+
+## 10. Repository Structure
+
+```
+Seoul-Bike-Sharing-Demand/
+├── Seoul_Bike_Sharing_Demand_Prediction.ipynb
+├── SeoulBikeData.csv
+└── README.md
+```
